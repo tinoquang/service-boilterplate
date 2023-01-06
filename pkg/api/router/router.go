@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/tinoquang/service-boilerplate/pkg/api/handler"
+	"github.com/tinoquang/service-boilerplate/pkg/api/middlewares"
 )
 
 type Router struct {
@@ -24,6 +25,7 @@ func New(l *zap.Logger) *Router {
 	}
 
 	// register middlewares
+	middlewares.RegisterCommon(r.Echo, l)
 
 	// register routes
 	r.registerRoutes(l)
@@ -34,4 +36,6 @@ func (r *Router) registerRoutes(l *zap.Logger) {
 	h := handler.New(l)
 
 	r.GET("/ping", h.Ping)
+
+	// Add more routes here
 }
