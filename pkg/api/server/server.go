@@ -1,81 +1,56 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
-
-	"github.com/labstack/echo/v4"
+	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/tinoquang/service-boilerplate/pkg/api/router"
+	"github.com/tinoquang/service-boilerplate/pkg/config"
 )
 
 // Server embeds an Echo instance
 type Server struct {
 	http.Server
 
-	logger *zap.Logger
+	defaultLogger *zap.Logger
 }
 
 // New creates a new server
-func New() *Server {
+func New(cfg *config.Config, l *zap.Logger) *Server {
+	r := router.New(l)
 
 	return &Server{
-		Echo: e,
+		Server: http.Server{
+			Addr:    fmt.Sprintf(":%s", cfg.Port),
+			Handler: r,
+		},
+		defaultLogger: l,
 	}
 }
 
-type customBinder struct {
-	binder        echo.Binder
-	validator     *validator.Validate
-	errTranslator ut.Translator
-}
+func (s *Server) Start(parentCtx context.Context) {
+	go func() {
+		<-parentCtx.Done()
 
-func newCustomBinder() *customBinder {
-	v := validator.New()
+		// close the server
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	en := en.New()
-	uni := ut.New(en, en)
-	// this is usually know or extracted from http 'Accept-Language' header
-	// also see uni.FindTranslator(...)
-	trans, _ := uni.GetTranslator("en")
-
-	if err := en_translations.RegisterDefaultTranslations(v, trans); err != nil {
-		panic(err)
-	}
-
-	return &customBinder{
-		binder:        &echo.DefaultBinder{},
-		validator:     v,
-		errTranslator: trans,
-	}
-}
-
-func (cb *customBinder) Bind(i interface{}, c echo.Context) error {
-	if err := cb.binder.Bind(i, c); err != nil {
-		return err
-	}
-
-	// if err.Error() == "EOF" {
-	// 	return "missing request body"
-	// }
-
-	if err := cb.validator.Struct(i); err != nil {
-		validationErr, ok := err.(validator.ValidationErrors)
-		if !ok {
-			return err
+		s.defaultLogger.Info("Shutting down server")
+		if err := s.Shutdown(ctx); err != nil {
+			s.defaultLogger.Fatal("Server Shutdown", zap.Error(err))
 		}
+	}()
 
-		errTrans := validationErr.Translate(cb.errTranslator)
-		var errMsg string
-		for _, e := range errTrans {
-			if errMsg != "" {
-				errMsg += ", "
-			}
-			errMsg += e
-		}
-
-		return fmt.Errorf("invalid request body: %s", errMsg)
+	// start the server
+	s.defaultLogger.Info("server_start", zap.String("port", s.Addr))
+	if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		s.defaultLogger.Fatal("listen: %s\n", zap.Error(err))
+		return
 	}
-
-	return nil
+	s.defaultLogger.Info("Server closed")
 }

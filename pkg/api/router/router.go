@@ -6,7 +6,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 type Router struct {
@@ -24,18 +23,14 @@ func New(l *zap.Logger) *Router {
 		Echo: e,
 	}
 
-	r.registerRoutes()
+	// register middlewares
 
-	r.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: `{"time":"${time_rfc3339_nano}","remote_ip":"${remote_ip}",` +
-			`"host":"${host}","method":"${method}","uri":"${uri}",` +
-			`"status":${status},"error":"${error}"}` + "\n",
-	}))
-
+	// register routes
+	r.registerRoutes(l)
 	return r
 }
 
-func (r *Router) registerRoutes() {
+func (r *Router) registerRoutes(l *zap.Logger) {
 	r.GET("/ping", func(c echo.Context) error {
 		return c.String(http.StatusOK, "pong")
 	})
