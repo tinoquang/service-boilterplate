@@ -2,3 +2,6 @@
 .vscode/
 
 *.out
+
+# executables
+service-boilerplate

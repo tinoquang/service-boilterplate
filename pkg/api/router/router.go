@@ -1,11 +1,11 @@
 package router
 
 import (
-	"net/http"
-
 	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"
+
+	"github.com/tinoquang/service-boilerplate/pkg/api/handler"
 )
 
 type Router struct {
@@ -31,7 +31,7 @@ func New(l *zap.Logger) *Router {
 }
 
 func (r *Router) registerRoutes(l *zap.Logger) {
-	r.GET("/ping", func(c echo.Context) error {
-		return c.String(http.StatusOK, "pong")
-	})
+	h := handler.New(l)
+
+	r.GET("/ping", h.Ping)
 }
