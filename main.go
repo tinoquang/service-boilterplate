@@ -14,6 +14,8 @@ import (
 
 	"github.com/tinoquang/service-boilerplate/pkg/api/server"
 	"github.com/tinoquang/service-boilerplate/pkg/config"
+	"github.com/tinoquang/service-boilerplate/pkg/ctxlogger"
+	"github.com/tinoquang/service-boilerplate/pkg/services"
 )
 
 var (
@@ -56,9 +58,9 @@ func main() {
 	}
 
 	logger = logger.With(zap.String("env", cfg.Env.String()), zap.String("commitHash", ldGitCommit))
-
-	logger.Info("Starting server")
-	s := server.New(cfg, logger)
+	ctxlogger.SetDefaultLogger(logger)
+	svc := services.New(cfg)
+	s := server.New(cfg, logger, svc)
 
 	// create a context with graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())

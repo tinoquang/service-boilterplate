@@ -8,28 +8,37 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/tinoquang/service-boilerplate/pkg/api/router"
+	"github.com/labstack/echo/v4"
+	"github.com/tinoquang/service-boilerplate/pkg/api/middlewares"
 	"github.com/tinoquang/service-boilerplate/pkg/config"
+	"github.com/tinoquang/service-boilerplate/pkg/ctxlogger"
+	"github.com/tinoquang/service-boilerplate/pkg/services"
 )
 
-// Server embeds an Echo instance
 type Server struct {
-	http.Server
-
-	defaultLogger *zap.Logger
+	cfg *config.Config
+	e   *echo.Echo
 }
 
 // New creates a new server
-func New(cfg *config.Config, l *zap.Logger) *Server {
-	r := router.New(l)
+func New(cfg *config.Config, l *zap.Logger, svc services.Services) *Server {
+	// Create a new Echo instance
+	e := echo.New()
 
-	return &Server{
-		Server: http.Server{
-			Addr:    fmt.Sprintf(":%s", cfg.Port),
-			Handler: r,
-		},
-		defaultLogger: l,
+	// Add custom validator
+	e.Binder = newCustomBinder()
+
+	// register middlewares
+	middlewares.RegisterCommon(e, l)
+
+	// register routes
+	s := &Server{
+		cfg: cfg,
+		e:   e,
 	}
+
+	s.registerRoutes(cfg, svc)
+	return s
 }
 
 func (s *Server) Start(parentCtx context.Context) {
@@ -40,17 +49,17 @@ func (s *Server) Start(parentCtx context.Context) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		s.defaultLogger.Info("Shutting down server")
-		if err := s.Shutdown(ctx); err != nil {
-			s.defaultLogger.Fatal("Server Shutdown", zap.Error(err))
+		ctxlogger.Info(parentCtx, "Shutting down server")
+		if err := s.e.Shutdown(ctx); err != nil {
+			ctxlogger.Error(parentCtx, "Server shutdown error", zap.Error(err))
 		}
 	}()
 
 	// start the server
-	s.defaultLogger.Info("server_start", zap.String("port", s.Addr))
-	if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		s.defaultLogger.Fatal("listen: %s\n", zap.Error(err))
+	if err := s.e.Start(fmt.Sprintf(":%s", s.cfg.Port)); err != nil && err != http.ErrServerClosed {
+		ctxlogger.Error(parentCtx, "Server start error", zap.Error(err))
 		return
 	}
-	s.defaultLogger.Info("Server closed")
+
+	ctxlogger.Info(parentCtx, "Server stopped")
 }

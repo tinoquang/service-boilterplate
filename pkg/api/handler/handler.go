@@ -1,13 +1,19 @@
 package handler
 
-import "go.uber.org/zap"
+import (
+	"github.com/tinoquang/service-boilerplate/pkg/config"
+	"github.com/tinoquang/service-boilerplate/pkg/services"
+)
 
 type APIHandler struct {
-	defaultLogger *zap.Logger
+	cfg *config.Config
+
+	svc services.Services
 }
 
-func New(l *zap.Logger) *APIHandler {
+func New(cfg *config.Config, svc services.Services) *APIHandler {
 	return &APIHandler{
-		defaultLogger: l,
+		cfg: cfg,
+		svc: svc,
 	}
 }
